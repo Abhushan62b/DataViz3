@@ -1,0 +1,132 @@
+---
+title: "tree"
+output: html_document
+date: "2024-05-10"
+---
+
+Install relevant packages
+```{r}
+install.packages("ggplot2")
+install.packages("dplyr")
+install.packages("treemap")
+install.packages("grid")
+install.packages("plotly")
+
+```
+
+Load libraries
+```{r}
+library(ggplot2)
+library(treemap)
+library(dplyr)
+library(grid)
+library(plotly)
+```
+
+Read csv file
+```{r}
+depart <- read.csv("nepali_departure_purposewise.csv")
+```
+
+Restructure top 10 data and calculate their percentages
+```{r}
+# Extract the top 10 rows
+top_10_df <- depart[1:10, ]
+
+# Calculate totals for the remaining rows
+remaining_df <- depart[11:17, ]
+remaining_totals <- colSums(remaining_df[, c("Male", "Female", "Total")], na.rm = TRUE)
+
+# Create a new row for remaining totals
+remaining_row <- data.frame(
+  S.N. = 11,
+  Purpose.of.Visit = 'Others',
+  Male = remaining_totals['Male'],
+  Female = remaining_totals['Female'],
+  Total = remaining_totals['Total']
+)
+
+# Combine top 10 rows with the remaining totals row
+final_df <- bind_rows(top_10_df, remaining_row)
+
+# Calculate the total sum of all visits
+grand_total <- sum(final_df$Total)
+
+# Calculate the percentage of each purpose of visit relative to the grand total
+final_df$Percentage <- (final_df$Total / grand_total) * 100
+
+# Create a new column for the labels that combine the purpose of visit and percentage
+final_df$Label <- paste(final_df$Purpose.of.Visit, sprintf("(%.2f%%)", final_df$Percentage))
+
+
+```
+
+Plot the treemap
+```{r}
+
+treemap(
+  final_df,
+  index = "Label",
+  vSize = "Percentage",
+  title = "Why Do Nepalese People Go Abroad?",
+  palette = "Set3",
+  border.col = "white",
+  fontsize.title = 16,
+  fontsize.labels = 12,
+  vColor = "Percentage",
+  type = "value",
+  draw_labels = TRUE,
+  align.labels = list(c("center", "center"))
+)
+
+#Source Label
+
+grid.text(
+  "Source: Department of Immigration, 2023",
+  x = unit(1, "npc") - unit(2, "mm"),
+  y = unit(2, "mm"),
+  just = c("right", "bottom"),
+  gp = gpar(fontsize = 10, col = "black")
+)
+
+```
+
+
+Plot the treemap using plotly
+```{r}
+
+fig <- plot_ly(
+  final_df,
+  type = "treemap",
+  labels = ~Purpose.of.Visit,
+  parents = NA,
+  values = ~Total,
+  textinfo = "label+percent entry",
+  texttemplate = ~paste(Purpose.of.Visit, "<br>", round(Percentage, 2), "%"),
+  marker = list(colors = final_df$Percentage, colorscale = 'YlGnBu', showscale = TRUE)
+)
+
+# Customize layout to add title and source label
+fig <- fig %>% layout(
+  title = "Why Do Nepalese People Go Abroad?",
+  annotations = list(
+    x = 1,
+    y = -0.1,
+    text = "Source: Department of Immigration, 2023",
+    showarrow = FALSE,
+    xref = 'paper',
+    yref = 'paper',
+    xanchor = 'right',
+    yanchor = 'auto',
+    xshift = 0,
+    yshift = 0,
+    font = list(size = 12, color = "black")
+  ),
+  margin = list(b = 100)  # Adjust the bottom margin to make space for the source label
+)
+
+# Display the plot
+fig
+
+```
+
